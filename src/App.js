@@ -310,15 +310,17 @@ const App = () => {
 
   // Mouse tracking for eraser cursor
   const handleMouseMove = useCallback((e) => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      setMousePosition({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      });
+    if (activeTool === 'eraser') {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        setMousePosition({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        });
+      }
     }
-  }, []);
+  }, [activeTool]);
 
   const handleMouseEnter = useCallback(() => {
     if (activeTool === 'eraser') {
@@ -329,6 +331,15 @@ const App = () => {
   const handleMouseLeave = useCallback(() => {
     setShowEraserCursor(false);
   }, []);
+
+  // Update eraser cursor visibility when tool changes
+  useEffect(() => {
+    if (activeTool === 'eraser') {
+      setShowEraserCursor(true);
+    } else {
+      setShowEraserCursor(false);
+    }
+  }, [activeTool]);
 
   // Canvas setup
   useEffect(() => {
@@ -508,8 +519,11 @@ const App = () => {
             className={`w-full h-full drawing-canvas ${activeTool === 'eraser' ? 'eraser' : ''}`}
             onMouseDown={startDrawing}
             onMouseMove={(e) => {
-              draw(e);
-              handleMouseMove(e);
+              if (!isDrawing) {
+                handleMouseMove(e);
+              } else {
+                draw(e);
+              }
             }}
             onMouseUp={stopDrawing}
             onMouseLeave={(e) => {
