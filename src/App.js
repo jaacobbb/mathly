@@ -8,12 +8,15 @@ const App = () => {
   const [currentSheet, setCurrentSheet] = useState(null);
   const [activeTool, setActiveTool] = useState('pen');
   const [penSettings, setPenSettings] = useState({ color: '#000000', width: 4 });
+  const [eraserSize, setEraserSize] = useState(8);
   
   // Canvas and drawing state
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingHistory, setDrawingHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [showEraserCursor, setShowEraserCursor] = useState(false);
 
   // Initialize app with default notebook
   useEffect(() => {
@@ -132,10 +135,10 @@ const App = () => {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.beginPath();
       ctx.moveTo(point.x, point.y);
-      ctx.lineWidth = penSettings.width * 2;
+      ctx.lineWidth = eraserSize;
       ctx.lineCap = 'round';
     }
-  }, [activeTool, penSettings, getPointFromEvent]);
+  }, [activeTool, penSettings, eraserSize, getPointFromEvent]);
 
   const draw = useCallback((e) => {
     if (!isDrawing) return;
@@ -305,6 +308,28 @@ const App = () => {
     setCurrentSheet(firstSheet);
   };
 
+  // Mouse tracking for eraser cursor
+  const handleMouseMove = useCallback((e) => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      setMousePosition({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (activeTool === 'eraser') {
+      setShowEraserCursor(true);
+    }
+  }, [activeTool]);
+
+  const handleMouseLeave = useCallback(() => {
+    setShowEraserCursor(false);
+  }, []);
+
   // Canvas setup
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -440,7 +465,7 @@ const App = () => {
             </div>
             
             <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-600">Size:</label>
+              <label className="text-sm text-gray-600">Pen Size:</label>
               <input
                 type="range"
                 min="1"
@@ -451,6 +476,21 @@ const App = () => {
               />
               <span className="text-sm text-gray-600">{penSettings.width}px</span>
             </div>
+            
+            {activeTool === 'eraser' && (
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-gray-600">Eraser Size:</label>
+                <input
+                  type="range"
+                  min="4"
+                  max="40"
+                  value={eraserSize}
+                  onChange={(e) => setEraserSize(parseInt(e.target.value))}
+                  className="w-20"
+                />
+                <span className="text-sm text-gray-600">{eraserSize}px</span>
+              </div>
+            )}
             
             <button
               onClick={clearCanvas}
@@ -467,14 +507,35 @@ const App = () => {
             ref={canvasRef}
             className={`w-full h-full drawing-canvas ${activeTool === 'eraser' ? 'eraser' : ''}`}
             onMouseDown={startDrawing}
-            onMouseMove={draw}
+            onMouseMove={(e) => {
+              draw(e);
+              handleMouseMove(e);
+            }}
             onMouseUp={stopDrawing}
-            onMouseLeave={stopDrawing}
+            onMouseLeave={(e) => {
+              stopDrawing(e);
+              handleMouseLeave();
+            }}
+            onMouseEnter={handleMouseEnter}
             onTouchStart={startDrawing}
             onTouchMove={draw}
             onTouchEnd={stopDrawing}
             style={{ touchAction: 'none' }}
           />
+          
+          {/* Eraser Cursor */}
+          {showEraserCursor && activeTool === 'eraser' && (
+            <div
+              className="absolute pointer-events-none border-2 border-red-400 rounded-full bg-red-200 bg-opacity-30"
+              style={{
+                left: mousePosition.x - eraserSize / 2,
+                top: mousePosition.y - eraserSize / 2,
+                width: eraserSize,
+                height: eraserSize,
+                zIndex: 10
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
